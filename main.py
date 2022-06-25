@@ -8,11 +8,12 @@ import pandas as pd
 import torch
 import tensorflow as tf
 from tensorflow import keras
+from tensorflow.keras.models import Sequential
 #from keras.preprocessing.image import ImageDataGenerator, load_img
-from keras.layers import Conv2D, Dense, BatchNormalization, Activation, Dropout, MaxPooling2D, Flatten
-from keras.optimizers import Adam, RMSprop, SGD
-from keras import regularizers
-from keras.callbacks import ModelCheckpoint, CSVLogger, TensorBoard, EarlyStopping, ReduceLROnPlateau
+from tensorflow.keras.layers import Conv2D, Dense, BatchNormalization, Activation, Dropout, MaxPooling2D, Flatten
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras import regularizers
+from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, TensorBoard, EarlyStopping, ReduceLROnPlateau
 import datetime
 import threading
 import time
@@ -43,6 +44,11 @@ def get_model(input_size, classes=7):
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Dropout(0.25))
 
+    model.add(Conv2D(512, kernel_size=(3, 3), activation='relu', padding='same', kernel_regularizer=regularizers.l2(0.01)))
+    model.add(Conv2D(1024, kernel_size=(3, 3), activation='relu', kernel_regularizer=regularizers.l2(0.01)))
+    model.add(BatchNormalization())
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+
     model.add(Flatten())
     model.add(Dense(1024, activation='relu'))
     model.add(Dropout(0.5))
@@ -58,9 +64,8 @@ def get_model(input_size, classes=7):
 clf = get_model((row,col,1), classes)
 
 #clf.build((row,col,1, 0))
-
-clf.load_weights('train71val55.ckpt')
-#clf.load_state_dict(torch.load('fernet_bestweight.h5'))
+#clf=clf.load_model('train71val55.ckpt')
+clf.load_weights('ferNet.h5')
 
 
 def start():
@@ -77,7 +82,7 @@ def start():
     global var
     var = True
 
-    cap = cv2.VideoCapture('IMG_0004.MOV')  # VIDEO/WEBCAM/PHOTO PATH
+    cap = cv2.VideoCapture('IMG_0002.MOV')  # VIDEO/WEBCAM/PHOTO PATH
 
     # the output will be written to output.avi
     out = cv2.VideoWriter(
@@ -89,7 +94,8 @@ def start():
     borders=[]
     count=0
     while (var):
-        if count%10==0:
+        count += 1
+        if count%3==0:
 
             # Capture frame-by-frame
             ret, frame = cap.read()
@@ -135,8 +141,7 @@ def start():
                         if maxx[0]<predict[0][i]:
                             maxx[0]=predict[0][i]
                             index[0]=i
-                print(index)
-                print(maxx)
+                
                 for j in range(len(borders)):
                     if borders[j][0]<=xA<=borders[j][2] and borders[j][0]<=xB<=borders[j][2] and borders[j][1]<=yA<=borders[j][3] and borders[j][1]<=yB<=borders[j][3]:
                         id_=j
@@ -175,13 +180,19 @@ def start():
             #out.write(frame.astype('uint8'))
             # Display the resulting frame
             #cv2.imshow('frame', frame)
-            count+=1
+
             '''if cv2.waitKey(1) & 0xFF == ord('q'):
                 break'''
 
             cv2.imshow('frame', frame)
+            #cv2.destroyAllWindows()
+            cv2.waitKey(40)
 
-            cv2.waitKey(0)
+
+
+
+
+
     # When everything done, release the capture
     cap.release()
     # and release the output
@@ -197,7 +208,8 @@ def end():
     var=False
 
 def chart():
-    plt.pie(frame, labels=my_labels, autopct='%1.1f%%')
+    s = xw.get(1.0, END)
+    plt.pie(df, labels=my_labels, autopct='%1.1f%%')
     plt.title('My Tasks')
     plt.axis('equal')
     plt.show()
