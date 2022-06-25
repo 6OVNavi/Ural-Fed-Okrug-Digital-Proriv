@@ -3,6 +3,7 @@ from time import *
 import numpy as np
 import cv2
 import sys
+import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import torch
@@ -22,7 +23,7 @@ from PIL import Image
 #sys.path.append('D:\!!УФА ВЩМГОР\hackaton\yolov5face')
 sys.path.insert(1, 'yolov5face')
 import detect_face
-
+matplotlib.use('TkAgg')
 #import main
 row, col = 48, 48
 classes = 7
@@ -69,6 +70,7 @@ clf.load_weights('ferNet.h5')
 
 
 def start():
+    spath = path.get(1.0, END)
     global df
     d={'id': [-1],
        'time': [-1],
@@ -81,9 +83,10 @@ def start():
     start_=time.time()
     global var
     var = True
-
-    cap = cv2.VideoCapture('IMG_0002.MOV')  # VIDEO/WEBCAM/PHOTO PATH
-
+    try:
+        cap = cv2.VideoCapture(int(spath))  # VIDEO/WEBCAM/PHOTO PATH
+    except:
+        cap = cv2.VideoCapture(spath)
     # the output will be written to output.avi
     out = cv2.VideoWriter(
         'output.avi',
@@ -129,19 +132,25 @@ def start():
                 img = img.reshape(1, 48, 48, 1)
                 img=img.astype(float)
                 predict=clf.predict(img)
-                maxx=[]
-                index=[]
+                maxx=[0, 0, 0]
+                index=[-1, -1, -1]
 
-                for i in range(len(predict[0])):
-                    if len(maxx)<3:
-                        maxx.append(predict[0][i])
-                        index.append(i)
-                    else:
-                        maxx.sort()
-                        if maxx[0]<predict[0][i]:
-                            maxx[0]=predict[0][i]
-                            index[0]=i
-                
+                for j in range(len(predict[0])):
+                    if maxx[0]<=predict[0][j]:
+                        if maxx[1]<=predict[0][j]:
+                            if maxx[2]<=predict[0][j]:
+                                maxx[2]=predict[0][j]
+                                index[2]=j
+                                continue
+                            maxx[1]=predict[0][j]
+                            index[1]=j
+                            continue
+                        maxx[0]=predict[0][j]
+                        index[0]=j
+
+                print('pred:', predict)
+                print('ind', index)
+                print('max:', maxx)
                 for j in range(len(borders)):
                     if borders[j][0]<=xA<=borders[j][2] and borders[j][0]<=xB<=borders[j][2] and borders[j][1]<=yA<=borders[j][3] and borders[j][1]<=yB<=borders[j][3]:
                         id_=j
@@ -167,7 +176,7 @@ def start():
                 # display the detected boxes in the colour picture
                 cv2.rectangle(frame, (xA, yA), (xB, yB),
                               (0, 255, 0), 2)
-                cv2.putText(frame, emotions[index[2]],
+                cv2.putText(frame, f'{id_}:{emotions[index[2]]}',
                             (xA, yB),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             1,
@@ -203,37 +212,56 @@ def real_start():
     thread.start()
 def end():
     global df
-    df.to_csv('result.csv', index=False)
     global var
     var=False
+    df=df[1:]
+    df.to_csv('result.csv', index=False)
 
 def chart():
     s = xw.get(1.0, END)
-    plt.pie(df, labels=my_labels, autopct='%1.1f%%')
-    plt.title('My Tasks')
+    df=pd.read_csv('result.csv')
+    print(df[df['id']==int(s)]['em1'].value_counts().index)
+    temp_df=df.copy()
+    #temp_df=temp_df.drop(columns=[])
+    plt.figure(figsize=(8, 6))
+    plt.pie(df[df['id']==int(s)]['em1'].value_counts(), labels=df[df['id']==int(s)]['em1'].value_counts().index , autopct='%1.1f%%')
+    plt.title('График эмоций ученика')
     plt.axis('equal')
     plt.show()
+    plt.plot(df['time'], df['em1'], label='Наиболее важная')
+    plt.plot(df['time'], df['em2'], alpha=0.5, label='Менее важная')
+    plt.plot(df['time'], df['em3'], alpha=0.3, label='Незначительная')
+    plt.legend(loc='upper center')
+    plt.title('Эмоции сквозь время')
+    plt.xlabel('Время в секундах')
+    plt.ylabel('Эмоции')
+    plt.show()
+
 window = Tk()
 window.geometry("300x400")
 window.title("Emotion Detectrotion")
-
-b1 = Button(text="Start recording",
+path = Text(window, height=2,
+          width=30,
+          bg="light yellow")
+path.insert(INSERT, "Путь к файлу или веб-камера(укажите 0)")
+path.pack()
+b1 = Button(text="Начать запись",
             width=15, height=2)
 b1.config(command=real_start)
 b1.pack()
-b2 = Button(text="End recording",
+b2 = Button(text="Прекратить запись",
             width=15, height=2)
 b2.config(command=end)
 b2.pack()
 
 xw = Text(window, height=1,
-          width=15,
+          width=30,
           bg="light yellow")
-xw.insert(INSERT, "X")
+xw.insert(INSERT, "Укажите ID ученика")
 xw.pack()
-b3 = Button(text="End",
+b3 = Button(text="Создать график",
             width=15, height=2)
-b3.config(command=end)
+b3.config(command=chart)
 b3.pack()
 
 window.mainloop()
