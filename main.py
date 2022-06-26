@@ -97,11 +97,13 @@ def start():
     borders=[]
     count=0
     while (var):
+        ret, frame = cap.read()
         count += 1
         if count%3==0:
-
+            
+            
             # Capture frame-by-frame
-            ret, frame = cap.read()
+            
             # resizing for faster detection
             if frame is None:
                 break
